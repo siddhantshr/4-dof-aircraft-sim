@@ -1,0 +1,37 @@
+# Ignore environment files
+.env
+
+# Ignore venv
+.venv/
+
+# Ignore build outputs
+dist/
+build/
+# Ignore logs
+logs/
+*.log
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Ignore coverage directory
+coverage/
+# Ignore temporary files
+tmp/
+temp/
+
+# ignore pycache
+__pycache__/
+
+db.sqlite3
+
+staticfiles/
