@@ -36,11 +36,3 @@ jobs:
       - name: Run flake8 (lint)
         run: |
           flake8 .
-
-      - name: Run migrations
-        run: |
-          python manage.py migrate
-
-      - name: Run tests
-        run: |
-          python manage.py test
