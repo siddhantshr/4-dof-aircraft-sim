@@ -20,6 +20,7 @@ from yaml import safe_load
 
 from src.exceptions.exceptions import (
     CriticalMachWarning,
+    GroundContactError,
     StallError,
     SupersonicFlowError,
 )
@@ -212,6 +213,9 @@ class Aircraft:
             SupersonicFlowError: If the Mach number exceeds 1.0.
         """
         u, w, q, theta, height, x = state
+
+        if height <= 0:
+            raise GroundContactError(height)
 
         qbar = 0.5 * self.atmosphere.rho(height) * (u**2 + w**2)
         alpha = np.arctan2(w, u)  # Angle of attack in radians
