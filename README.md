@@ -9,17 +9,32 @@
 
 - Key Features:
     - Nonlinear 6-state longitudinal flight dynamics model using body-axis velocities, pitch angle, and pitch rate.
-      i.e. $$ state = [u, w, q, \theta, height, x]^T $$
+
+        $$
+        state = [u, w, q, θ, h, x]^T
+        $$
+
     - Aerodynamic forces and moments derived from real Boeing 737 airfoil data (Cl, Cd, Cm) as functions of angle of attack.
-    - forces and moments modelled as stability-derivative based functions
+    - Forces and moments modelled as stability-derivative based functions.
     - Realistic atmospheric model for air density and speed of sound variations with altitude.
     - PFD-style display showing airspeed, altitude, vertical speed, and pitch angle.
-    - control inputs for throttle and elevator deflection to influence the aircraft's state.
+    - Control inputs for throttle and elevator deflection to influence the aircraft's state.
     - Modelled compressible flow effects at high speeds (Mach > 0.3) using Prandtl-Glauert correction.
-    - Modelled wave drag at transonic speeds using a simplified approximation 
-        $ \Delta C_{D,wave} = k \cdot (M - M_{crit})^m $ where $M_{crit}$ is the critical Mach number and $k, m$ are empirically derived constants.
-    - Aircraft inertia estimation using radius of gyration approximations based on typical commercial airliner mass distributions. $ I_{yy} = m \cdot (r_gL)^2 $ where $r_g$ is the radius of gyration as a fraction of the aircraft length $L$.
-    - foundation for future extensions to include lateral-directional dynamics, control surface deflections, more detailed aerodynamic modeling, autopilot systems, post stall behavior, structural deformation effects, and more advanced rendering of the PFD.
+    - Modelled wave drag at transonic speeds using a simplified approximation:
+
+        $$
+        \Delta C_{D,wave} = k \cdot (M - M_{crit})^m
+        $$
+
+        where $M_{crit}$ is the critical Mach number and $k, m$ are empirically derived constants.
+    - Aircraft inertia estimation using radius of gyration approximations based on typical commercial airliner mass distributions.
+
+        $$
+        I_{yy} = m \cdot (r_g L)^2
+        $$
+
+        where $r_g$ is the radius of gyration as a fraction of the aircraft length $L$.
+    - Foundation for future extensions to include lateral-directional dynamics, control surface deflections, more detailed aerodynamic modeling, autopilot systems, post stall behavior, structural deformation effects, and more advanced rendering of the PFD.
     - Accurate kinematics integration using Runge-Kutta-Fehlberg method for improved stability and accuracy over simple Euler integration.
 
 ## Quick Start
