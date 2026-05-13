@@ -1,43 +1,107 @@
-from src.models.aircraft import Aircraft
+"""
+Boeing 737 Primary Flight Display  –  dynamic tapes
+Run:  python -m src
+Requires: pygame
+"""
+
 from pathlib import Path
+import sys
+
+import pygame
+
+from src.models.aircraft import Aircraft
+from src.exceptions.exceptions import (
+    GroundContactError,
+    StallError,
+    SupersonicFlowError,
+    StructureDeformationError,
+)
+
+from src.utils.pfd import *
 
 PARENT_PATH = Path(__file__).resolve().parent
 
-"""
-we are keeping everthing in SI units, we are not using lbs, ft, knots, etc.
+def main() -> None:
+    pygame.init()
+    screen = pygame.display.set_mode((W, H))
+    pygame.display.set_caption("Boeing 737 PFD  –  4-DOF Dynamic")
+    clock = pygame.time.Clock()
 
-1 ft = 1/3.281 m
-1 lb = 0.453592 kg
-1 knot = 0.514444 m/s
+    b737 = Aircraft(initial_state=[70, 0, 0, 0.1, 1000, 0])
+    b737.initialize_config(PARENT_PATH, "data/737-midspan-airfoil.csv", "data/configuration.yaml")
 
-We are only going to see low speed aerodynamics, so we are not going to worry about
-compressibility, shock waves etc. M < 0.3 i.e. Vtas < 0.3*sqrt(gamma*R*T)
-"""
+    physics_accumulator = 0.0
+    status_message = ""
 
-LENGTH_CONVERSION = 1/3.281
-MASS_CONVERSION = 0.453592
-VELOCITY_CONVERSION = 0.514444
+    while True:
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
 
-def main():
-    # we are keeping everthing in SI units, we are not using lbs, ft, knots, etc. 
-    # mass = [oew, payload, fuel_mass]
-    # initial_state = [height, tas, pitch_angle, pitch_rate]
-    b737 = Aircraft(
-        mass=[41412, 16000, 10000],
-        thrust=120000,
-        initial_state=[10_000*LENGTH_CONVERSION, 70, 0.1, 0],
-    )
-    b737.initialize_airfoil(PARENT_PATH, "data/737-midspan-airfoil.csv", "data/geometries.json", "data/drag-polar.csv")
+        frame_dt = min(clock.tick(FPS) / 1000.0, 0.05)
+        physics_accumulator += frame_dt
 
-    # for attribute, value in b737.__dict__.items():
-    #     print(f"{attribute}: {value}")
+        apply_user_input(b737, frame_dt)
 
-    # for attribute, value in b737.airfoil.__dict__.items():
-    #     print(f"{attribute}: {value}")
+        try:
+            while physics_accumulator >= PHYSICS_DT:
+                b737.update_state(PHYSICS_DT)
+                physics_accumulator -= PHYSICS_DT
+                if b737.height <= 0:
+                    raise GroundContactError(b737.height)
+            status_message = ""
+        except (StallError, SupersonicFlowError, GroundContactError, StructureDeformationError) as exc:
+            status_message = str(exc)
+            physics_accumulator = 0.0
 
-    # for attribute, value in b737.atmosphere.__dict__.items():
-    #     print(f"{attribute}: {value}")
+        update_state_from_aircraft(b737)
 
+        screen.fill(BG)
+        draw_ai(screen, S["pitch_deg"])
+        draw_speed_tape(screen, S["tas_kt"])
+        draw_alt_tape(screen, S["altitude_ft"])
+        draw_vs_tape(screen, S["vs_fpm"])
+        draw_hdg_tape(screen, S["hdg_mag"])
+        draw_annunciations(screen)
+
+        f_status = font(18, bold=True)
+        txt(
+            screen,
+            f"THR {S.get('throttle', 0.0):.2f}",
+            (SPD_X, AI_Y + AI_H + 70),
+            f_status,
+            CYAN,
+        )
+        txt(
+            screen,
+            f"ELEV {S.get('elevator_deg', 0.0):+.1f} deg",
+            (SPD_X, AI_Y + AI_H + 92),
+            f_status,
+            CYAN,
+        )
+        txt(
+            screen,
+            f"MACH {S.get('mach', 0.0):.2f}",
+            (SPD_X, AI_Y + AI_H + 114),
+            f_status,
+            CYAN,
+        )
+        txt(
+            screen,
+            f"AOA {S.get('aoa', 0.0):+.1f} deg",
+            (SPD_X, AI_Y + AI_H + 136),
+            f_status,
+            CYAN,
+        )
+
+        if status_message:
+            txt(screen, status_message, (W // 2, H - 30), font(18, bold=True), RED, anchor="midtop")
+
+        pygame.display.flip()
 
 
 if __name__ == "__main__":

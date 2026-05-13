@@ -1,0 +1,34 @@
+B737:
+    coefficients:
+        cd0: 0.024
+        k: 0.0366
+        e: 0.9213
+    moments: # JSBSim reference values
+        cm0: 0.05
+        cma: -1.1543
+        cmq: -21.43
+        cmde: -1.412
+    delta_moment_flaps:
+        cm0_flaps_1: -0.015
+        cm0_flaps_5: -0.045
+        cm0_flaps_15: -0.110
+        cm0_flaps_30: -0.180
+        cm0_flaps_40: -0.220
+    delta_moment_landing_gear:
+        cm0_gear_down: -0.01
+    geometry:
+        wing_area: 124.6
+        wing_span: 35.8
+        mean_aerodynamic_chord: 3.96
+        radius_of_gyration_yy: 0.3
+        length: 39.5
+    mass:
+        oew: 41412
+        payload: 16000
+        fuel_mass: 10000
+    thrust: # consider two CFM56-7B26 engines
+        thrust0: 234000
+    wave_drag:
+        severity_multiplier: 400
+        curve_exponent: 4
+        mcrit: 0.78

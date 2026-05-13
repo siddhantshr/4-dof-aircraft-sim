@@ -2,10 +2,27 @@ import json
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import yaml
 
 PARENT_PATH = Path(__file__).resolve().parent.parent.parent
 
 class Airfoil:  # for lift and drag
+    """Airfoil class to store aerodynamic properties of the airfoil, 
+    such as lift and drag coefficients, geometric properties, etc.
+
+    Args:
+        alpha0 (float): zero lift angle of attack in degrees
+        cl_slope (float): lift curve slope (per degree)
+        cd0 (float): zero lift drag coefficient
+        k (float): induced drag factor
+        stall_angle (float): angle of attack for stall in degrees
+        oswald_efficiency (float): Oswald efficiency factor
+        cm0 (float): pitching moment coefficient at zero lift
+        chord_length (float): chord length of the wing in meters
+        wing_area (float): wing area in square meters
+        wing_span (float): wing span in meters
+    """
+
     def __init__(
         self,
         alpha0=None,
@@ -13,6 +30,7 @@ class Airfoil:  # for lift and drag
         cd0=None,
         k=None,
         stall_angle=None,
+        negative_stall_angle=None,
         oswald_efficiency=None,
         cm0=None,
         chord_length=None,
@@ -20,10 +38,11 @@ class Airfoil:  # for lift and drag
         wing_span=None,
     ) -> None:
         self.alpha0 = alpha0
-        self.cl_slope = cl_slope
+        self.cl_slope = cl_slope # lift curve slope (per degree)
         self.cd0 = cd0
         self.k = k
         self.stall_angle = stall_angle
+        self.negative_stall_angle = negative_stall_angle
         self.oswald_efficiency = oswald_efficiency
         self.cm0 = cm0
         self.chord_length = chord_length
@@ -32,26 +51,45 @@ class Airfoil:  # for lift and drag
         self.aspect_ratio = (
             wing_span**2 / wing_area if wing_area and wing_span else None
         )
+        self.cma = None
+        self.cmde = None
+        self.cmq = None
 
-    def extract_airfoil(self, PARENT_PATH, airfoil_file, geometry_file, drag_polar_file) -> None:
-        # ----------------------- GEOMETRIC PROPERTIES -----------------------
+    def extract_airfoil(self, PARENT_PATH, airfoil_file, config_file) -> None:
+        """Extracts airfoil properties from the given files and populates the attributes of the Airfoil class.
 
-        with open(PARENT_PATH / geometry_file, "r") as f:
-            geometries = json.load(f)
-            self.chord_length = geometries["c"]
-            self.wing_span = geometries["b"]
-            self.wing_area = geometries["S"]
+        Args:
+            PARENT_PATH (Path): parent path to the data files
+            airfoil_file (str): filename of the airfoil data (CSV)
+            config_file (str): filename of the configuration data (YAML)
+
+        Returns:
+            None
+
+        Raises:
+            FileNotFoundError: If any of the specified files are not found.
+            ValueError: If the data in the files is not in the expected format.
+        """
+
+
+        with open(PARENT_PATH / config_file, "r") as f:
+            # ----------------------- GEOMETRIC PROPERTIES -----------------------
+            config = yaml.safe_load(f)
+            self.chord_length = float(config["B737"]["geometry"]["mean_aerodynamic_chord"])
+            self.wing_span = float(config["B737"]["geometry"]["wing_span"])
+            self.wing_area = float(config["B737"]["geometry"]["wing_area"])
             self.aspect_ratio = self.wing_span**2 / self.wing_area
 
-        # ------------------------ DRAG POLAR COEFFICIENTS ------------------------
+            # ------------------------ DRAG POLAR COEFFICIENTS ------------------------
+            self.oswald_efficiency = float(config["B737"]["coefficients"]["e"])
+            self.k = float(config["B737"]["coefficients"]["k"])
+            self.cd0 = float(config["B737"]["coefficients"]["cd0"])
 
-        df = pd.read_csv(PARENT_PATH / drag_polar_file)
-        df.columns = df.columns.str.strip()
-
-        row = df[df["Aircraft"] == "B737"].iloc[0]
-        self.cd0 = row["CD0_clean"]
-        self.k = row["k"]
-        self.oswald_efficiency = row["e"]
+            # ---------------------- MOMENT COEFFICIENTS ----------------------
+            self.cma = float(config["B737"]["moments"]["cma"])
+            self.cmde = float(config["B737"]["moments"]["cmde"])
+            self.cmq = float(config["B737"]["moments"]["cmq"])
+            self.cm0 = float(config["B737"]["moments"]["cm0"])
 
         # ---------------------- LIFT COEFFICIENTS ----------------------
 
@@ -61,6 +99,7 @@ class Airfoil:  # for lift and drag
         self.stall_angle = df.iloc[df["cl"].idxmax()][
             "alpha"
         ]  # angle of attack for stall
+        self.negative_stall_angle = df.iloc[df["cl"].idxmin()]["alpha"]
         data_points = []
         linear_limit = 6
         for _, row in df.iterrows():
@@ -84,10 +123,4 @@ class Airfoil:  # for lift and drag
         )  # converting back to per degree
 
         # alpha0 from our least square fit, where cl = 0 i.e alpha0 = -intercept/slope
-        self.alpha0 = -c / self.cl_slope
-
-        # ----------------------- PITCHING MOMENT COEFFICIENTS -----------------------
-
-        self.cm0 = sum([x[2] for x in data_points]) / len(
-            data_points
-        )  # average of cm values in linear region
+        self.alpha0 = -c / self.cl_slope # in degrees
