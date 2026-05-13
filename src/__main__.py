@@ -1,7 +1,6 @@
 """
-Boeing 737 Primary Flight Display  –  dynamic tapes
-Run:  python -m src
-Requires: pygame
+Main entry point for the Boeing 737 Simulator,
+handles initilization, main loop, and rendering of the PFD.
 """
 
 import sys
@@ -44,6 +43,9 @@ PARENT_PATH = Path(__file__).resolve().parent
 
 
 def main() -> None:
+    """Main function to run the Boeing 737 Simulator, initializing the Pygame
+    environment, creating the Aircraft instance, and entering the main simulation loop.
+    """
     pygame.init()
     screen = pygame.display.set_mode((W, H))
     pygame.display.set_caption("Boeing 737 PFD  –  4-DOF Dynamic")
@@ -75,8 +77,8 @@ def main() -> None:
             while physics_accumulator >= PHYSICS_DT:
                 b737.update_state(PHYSICS_DT)
                 physics_accumulator -= PHYSICS_DT
-                if b737.height <= 0:
-                    raise GroundContactError(b737.height)
+                if b737.state.height <= 0:
+                    raise GroundContactError(b737.state.height)
             status_message = ""
         except (
             StallError,

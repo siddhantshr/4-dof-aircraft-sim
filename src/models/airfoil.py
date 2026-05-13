@@ -1,3 +1,14 @@
+"""
+This module defines the Airfoil class, which encapsulates the aerodynamic
+properties of the airfoil used in the Boeing 737 simulator. It includes
+methods to extract airfoil properties from configuration files and perform
+a least squares fit to determine the lift curve slope. The Airfoil class
+is used by the Aircraft class to calculate lift and drag forces based on the
+current state of the aircraft.
+"""
+
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import yaml
@@ -22,17 +33,17 @@ class Airfoil:  # for lift and drag
 
     def __init__(
         self,
-        alpha0=None,
-        cl_slope=None,
-        cd0=None,
-        k=None,
-        stall_angle=None,
-        negative_stall_angle=None,
-        oswald_efficiency=None,
-        cm0=None,
-        chord_length=None,
-        wing_area=None,
-        wing_span=None,
+        alpha0: float = None,
+        cl_slope: float = None,
+        cd0: float = None,
+        k: float = None,
+        stall_angle: float = None,
+        negative_stall_angle: float = None,
+        oswald_efficiency: float = None,
+        cm0: float = None,
+        chord_length: float = None,
+        wing_area: float = None,
+        wing_span: float = None,
     ) -> None:
         self.alpha0 = alpha0
         self.cl_slope = cl_slope  # lift curve slope (per degree)
@@ -52,7 +63,9 @@ class Airfoil:  # for lift and drag
         self.cmde = None
         self.cmq = None
 
-    def extract_airfoil(self, PARENT_PATH, airfoil_file, config_file) -> None:
+    def extract_airfoil(
+        self, PARENT_PATH: Path, airfoil_file: str, config_file: str
+    ) -> None:
         """Extracts airfoil properties from the given files.
 
         Args:

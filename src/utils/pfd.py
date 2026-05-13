@@ -1,10 +1,20 @@
+"""
+This module contains functions for drawing the Primary Flight Display (PFD)
+elements on the screen, such as the attitude indicator, speed tape,
+altitude tape, vertical speed tape, and heading tape. It also includes a
+function to apply user input to the aircraft controls and a function
+to update the display state based on the current aircraft state.
+
+tas, gs displayed in knots; alt in feet; vs in fpm; hdg in degrees; baro in inches Hg
+"""
+
 import math
 
 import pygame
 
 from src.models.aircraft import Aircraft
 
-# ── window ────────────────────────────────────────────────────────────────────
+# CONSTANTS
 W, H = 840, 720
 FPS = 60
 PHYSICS_DT = 0.02
@@ -13,12 +23,10 @@ THROTTLE_RATE = 0.35
 ELEVATOR_RATE = 25.0
 MAX_ELEVATOR_DEFLECTION = 20.0
 
-# ── unit conversions ─────────────────────────────────────────────────────────
 KTS_PER_MPS = 1.94384
 FT_PER_M = 3.28084
 FPM_PER_MPS = 196.8504
 
-# ── colour palette (approximate Boeing EFIS) ─────────────────────────────────
 BLACK = (0, 0, 0)
 BG = (22, 22, 26)
 SKY = (28, 140, 210)
@@ -35,7 +43,6 @@ DARK = (40, 40, 45)
 RED = (200, 30, 30)
 LGRAY = (160, 160, 165)
 
-# ── dynamic flight state ─────────────────────────────────────────────────────
 S = dict(
     pitch_deg=2.5,
     altitude_ft=1400,
@@ -52,14 +59,12 @@ S = dict(
     mach=0.0,
 )
 
-# ── attitude indicator geometry ───────────────────────────────────────────────
 AI_X, AI_Y = 205, 90  # top-left of AI window
 AI_W, AI_H = 370, 370
 AI_CX = AI_X + AI_W // 2
 AI_CY = AI_Y + AI_H // 2
 PX_DEG = 27  # pixels per pitch degree
 
-# ── tape geometry ─────────────────────────────────────────────────────────────
 SPD_X, SPD_W = 35, 110  # speed tape  (left)
 ALT_X, ALT_W = 580, 115  # altitude tape (right)
 VS_X, VS_W = 700, 55  # VS tape (far right)
@@ -67,75 +72,117 @@ TAPE_Y = AI_Y
 TAPE_H = AI_H
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+def font(size: int, bold: bool = False) -> pygame.font.Font:
+    """Helper function to create a pygame font object.
 
+    Args:
+        size (int): Font size in points.
+        bold (bool): Whether the font should be bold. Default is False.
 
-def font(size, bold=False):
+    Returns:
+        pygame.font.Font: A pygame Font object with the specified size and weight.
+
+    Raises:
+        pygame.error: If the font cannot be loaded.
+    """
     return pygame.font.SysFont("monospace", size, bold=bold)
 
 
-def txt(surf, text, pos, fnt, colour, anchor="topleft"):
+def txt(
+    surf: pygame.Surface,
+    text: str,
+    pos: tuple,
+    fnt: pygame.font.Font,
+    colour: tuple,
+    anchor: str = "topleft",
+) -> None:
+    """Helper function to render text on a pygame surface with specified font and color.
+
+    Args:
+        surf (pygame.Surface): The surface to render the text on.
+        text (str): The text to render.
+        pos (tuple): The position to place the text, as (x, y) coordinates.
+        fnt (pygame.font.Font): The font object to use for rendering the text.
+        colour (tuple): The color of the text, as an RGB tuple.
+        anchor (str): The anchor point for positioning the text.
+                      Options include 'topleft', 'topright', 'midtop', 'center',
+                      etc. Default is 'topleft'.
+
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If the font cannot be rendered or if the surface is invalid.
+    """
     img = fnt.render(str(text), True, colour)
     r = img.get_rect(**{anchor: pos})
     surf.blit(img, r)
 
 
-def clamp(value, lower, upper):
+def clamp(value: float, lower: float, upper: float) -> float:
+    """Clamps a value between a lower and upper bound."""
     return max(lower, min(upper, value))
 
 
 def apply_user_input(aircraft: Aircraft, dt: float) -> None:
+    """Applies user input from the keyboard to
+    control the aircraft's throttle and elevator."""
     keys = pygame.key.get_pressed()
 
     if keys[pygame.K_w]:
-        aircraft.throttle = clamp(aircraft.throttle + THROTTLE_RATE * dt, 0.0, 1.0)
+        aircraft.controls.throttle = clamp(
+            aircraft.controls.throttle + THROTTLE_RATE * dt, 0.0, 1.0
+        )
     if keys[pygame.K_s]:
-        aircraft.throttle = clamp(aircraft.throttle - THROTTLE_RATE * dt, 0.0, 1.0)
+        aircraft.controls.throttle = clamp(
+            aircraft.controls.throttle - THROTTLE_RATE * dt, 0.0, 1.0
+        )
 
     if keys[pygame.K_UP]:
-        aircraft.elevator_deflection = clamp(
-            aircraft.elevator_deflection - ELEVATOR_RATE * dt,
+        aircraft.controls.elevator_deflection = clamp(
+            aircraft.controls.elevator_deflection - ELEVATOR_RATE * dt,
             -MAX_ELEVATOR_DEFLECTION,
             MAX_ELEVATOR_DEFLECTION,
         )
     if keys[pygame.K_DOWN]:
-        aircraft.elevator_deflection = clamp(
-            aircraft.elevator_deflection + ELEVATOR_RATE * dt,
+        aircraft.controls.elevator_deflection = clamp(
+            aircraft.controls.elevator_deflection + ELEVATOR_RATE * dt,
             -MAX_ELEVATOR_DEFLECTION,
             MAX_ELEVATOR_DEFLECTION,
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  ATTITUDE INDICATOR
-# ─────────────────────────────────────────────────────────────────────────────
+def draw_ai(surf: pygame.Surface, pitch_deg: float) -> None:
+    """Draws the attitude indicator (AI) on the
+    given surface based on the current pitch angle.
 
+    Args:
+        surf (pygame.Surface): The surface to draw the AI on.
+        pitch_deg (float): The current pitch angle in degrees.
 
-def draw_ai(surf, pitch_deg):
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If there is an error drawing on the surface.
+    """
     ai_rect = pygame.Rect(AI_X, AI_Y, AI_W, AI_H)
 
-    # horizon offset – positive pitch pushes the horizon DOWN
     offset = pitch_deg * PX_DEG
 
     surf.set_clip(ai_rect)
 
-    # sky fill
     surf.fill(SKY, ai_rect)
 
-    # ground fill below horizon line
     hor_y = AI_CY + offset
     if hor_y < AI_Y + AI_H:
         ground_top = max(AI_Y, int(hor_y))
         ground_rect = pygame.Rect(AI_X, ground_top, AI_W, AI_Y + AI_H - ground_top)
         surf.fill(GROUND, ground_rect)
 
-    # horizon line
     if AI_Y <= hor_y <= AI_Y + AI_H:
         pygame.draw.line(surf, WHITE, (AI_X, int(hor_y)), (AI_X + AI_W, int(hor_y)), 2)
 
-    # pitch ladder
     f_pitch = font(17)
     for deg in range(-30, 31, 5):
         if deg == 0:
@@ -154,10 +201,8 @@ def draw_ai(surf, pitch_deg):
 
     surf.set_clip(None)
 
-    # AI border
     pygame.draw.rect(surf, DARK, ai_rect, 5)
 
-    # fixed aircraft symbol (no roll)
     cx, cy = AI_CX, AI_CY
     pygame.draw.rect(surf, WHITE, (cx - 94, cy - 5, 62, 10))
     pygame.draw.rect(surf, BLACK, (cx - 94, cy - 5, 62, 10), 1)
@@ -172,12 +217,19 @@ def draw_ai(surf, pitch_deg):
         txt(surf, "CMD", (AI_CX, AI_Y + 10), f_cmd, GREEN, anchor="midtop")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  SPEED TAPE  (left)
-# ─────────────────────────────────────────────────────────────────────────────
+def draw_speed_tape(surf: pygame.Surface, tas: float) -> None:
+    """Draws the speed tape on the given surface based on the current true airspeed.
 
+    Args:
+        surf (pygame.Surface): The surface to draw the speed tape on.
+        tas (float): The current true airspeed in knots.
 
-def draw_speed_tape(surf, tas):
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If there is an error drawing on the surface.
+    """
     rect = pygame.Rect(SPD_X, TAPE_Y, SPD_W, TAPE_H)
     pygame.draw.rect(surf, TAPE_BG, rect)
     pygame.draw.rect(surf, TAPE_BDR, rect, 2)
@@ -261,12 +313,20 @@ def draw_speed_tape(surf, tas):
     txt(surf, f"VREF {S['vref_kt']}", (SPD_X + 4, TAPE_Y + TAPE_H - 54), f_ref, GREEN)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  ALTITUDE TAPE  (right)
-# ─────────────────────────────────────────────────────────────────────────────
+def draw_alt_tape(surf: pygame.Surface, alt: float) -> None:
+    """Draws the altitude tape on the given surface based on
+    the current altitude.
 
+    Args:
+        surf (pygame.Surface): The surface to draw the altitude tape on.
+        alt (float): The current altitude in feet.
 
-def draw_alt_tape(surf, alt):
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If there is an error drawing on the surface.
+    """
     rect = pygame.Rect(ALT_X, TAPE_Y, ALT_W, TAPE_H)
     pygame.draw.rect(surf, TAPE_BG, rect)
     pygame.draw.rect(surf, TAPE_BDR, rect, 2)
@@ -348,12 +408,7 @@ def draw_alt_tape(surf, alt):
     txt(surf, f"{S['baro_in']:.2f} IN.", (ALT_X, TAPE_Y + TAPE_H + 8), f_baro, GREEN)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  VERTICAL SPEED TAPE  (far right, narrow)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def vs_to_y(v):
+def vs_to_y(v: float) -> int:
     """Map VS (fpm) to a y pixel on the VS tape."""
     mid = TAPE_Y + TAPE_H // 2
     half = TAPE_H // 2 - 24  # usable half-height
@@ -365,7 +420,17 @@ def vs_to_y(v):
     return int(mid - base - extra)
 
 
-def draw_vs_tape(surf, vs):
+def draw_vs_tape(surf: pygame.Surface, vs: float) -> None:
+    """Draws the vertical speed tape on the
+    given surface based on the current vertical speed.
+
+    Args:
+        surf (pygame.Surface): The surface to draw the vertical speed tape on.
+        vs (float): The current vertical speed in feet per minute.
+
+    Returns:
+        None
+    """
     rect = pygame.Rect(VS_X, TAPE_Y, VS_W, TAPE_H)
     pygame.draw.rect(surf, TAPE_BG, rect)
     pygame.draw.rect(surf, TAPE_BDR, rect, 2)
@@ -401,12 +466,22 @@ def draw_vs_tape(surf, vs):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  HEADING TAPE  (bottom arc + tape)
-# ─────────────────────────────────────────────────────────────────────────────
+def draw_hdg_tape(
+    surf: pygame.Surface, hdg: float
+) -> None:  # this is static since only 4dof ;(
+    """Draws the heading tape on the given surface based on the current
+    magnetic heading.
 
+    Args:
+        surf (pygame.Surface): The surface to draw the heading tape on.
+        hdg (float): The current magnetic heading in degrees.
 
-def draw_hdg_tape(surf, hdg):
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If there is an error drawing on the surface.
+    """
     tape_x = AI_X
     tape_y = AI_Y + AI_H + 8
     tape_w = AI_W
@@ -475,12 +550,19 @@ def draw_hdg_tape(surf, hdg):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  TOP ANNUNCIATIONS
-# ─────────────────────────────────────────────────────────────────────────────
+def draw_annunciations(surf: pygame.Surface) -> None:
+    """Draws any annunciations (warnings, cautions, advisories)
+    on the given surface based on the current state.
 
+    Args:
+        surf (pygame.Surface): The surface to draw the annunciations on.
 
-def draw_annunciations(surf):
+    Returns:
+        None
+
+    Raises:
+        pygame.error: If there is an error drawing on the surface.
+    """
     f = font(22, bold=True)
     f2 = font(18)
     cx = AI_CX
@@ -504,25 +586,38 @@ def draw_annunciations(surf):
 
 
 def update_state_from_aircraft(aircraft: Aircraft) -> None:
-    v = (aircraft.u**2 + aircraft.w**2) ** 0.5
+    """Updates the display state dictionary S based on the current state of
+    the aircraft.
+
+    Args:
+        aircraft (Aircraft): The aircraft object containing the current
+        state of the simulation.
+
+    Returns:
+        None
+
+    Raises:
+        AttributeError: If the aircraft object does not have the required attributes.
+    """
+    v = (aircraft.state.u**2 + aircraft.state.w**2) ** 0.5
     mach = v / math.sqrt(
         1.4
         * aircraft.atmosphere.R
-        * (aircraft.atmosphere.T0 + aircraft.atmosphere.L * aircraft.height)
+        * (aircraft.atmosphere.T0 + aircraft.atmosphere.L * aircraft.state.height)
     )
     tas_kt = v * KTS_PER_MPS
-    alt_ft = aircraft.height * FT_PER_M
-    vs_mps = aircraft.u * math.sin(aircraft.theta) - aircraft.w * math.cos(
-        aircraft.theta
-    )
+    alt_ft = aircraft.state.height * FT_PER_M
+    vs_mps = aircraft.state.u * math.sin(
+        aircraft.state.theta
+    ) - aircraft.state.w * math.cos(aircraft.state.theta)
     vs_fpm = vs_mps * FPM_PER_MPS
 
     S["tas_kt"] = max(0.0, tas_kt)
     S["altitude_ft"] = max(0.0, alt_ft)
     S["vs_fpm"] = vs_fpm
-    S["pitch_deg"] = math.degrees(aircraft.theta)
+    S["pitch_deg"] = math.degrees(aircraft.state.theta)
     S["gs_kt"] = int(tas_kt)
-    S["throttle"] = aircraft.throttle
-    S["elevator_deg"] = aircraft.elevator_deflection
+    S["throttle"] = aircraft.controls.throttle
+    S["elevator_deg"] = aircraft.controls.elevator_deflection
     S["mach"] = mach
-    S["aoa"] = math.degrees(math.atan2(aircraft.w, aircraft.u))
+    S["aoa"] = math.degrees(math.atan2(aircraft.state.w, aircraft.state.u))

@@ -1,3 +1,10 @@
+"""
+This module defines custom exceptions for the Boeing 737 Simulator,
+including errors for structural deformation, supersonic flow,
+stall conditions, and ground contact.
+"""
+
+
 class StructureDeformationError(Exception):
     """Raised when structural deformation exceeds allowable limits."""
 

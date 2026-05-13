@@ -1,3 +1,17 @@
+"""
+This module defines the Aircraft class, which represents the state
+and dynamics of a Boeing 737. The Aircraft class includes
+methods to initialize the aircraft configuration, calculate
+the maximum thrust available at a given altitude, compute the
+derivatives of the state variables based on the current state
+and control inputs, and update the state using numerical integration.
+The Aircraft class interacts with the Airfoil class to determine
+aerodynamic forces and with the Atmosphere class to calculate
+atmospheric properties.
+"""
+
+from dataclasses import dataclass
+from pathlib import Path
 from warnings import warn
 
 import numpy as np
@@ -13,31 +27,51 @@ from src.models.airfoil import Airfoil
 from src.utils.atmosphere import Atmosphere
 
 
+@dataclass
+class AircraftState:
+    """Dataclass to represent the state of the aircraft."""
+
+    u: float  # Body X-velocity (m/s)
+    w: float  # Body Z-velocity (m/s)
+    q: float  # Pitch rate (rad/s)
+    theta: float  # Pitch angle (rad)
+    height: float  # Altitude (m)
+    x: float  # X-position (m)
+
+
+@dataclass
+class Controls:
+    """Dataclass to represent the control inputs for the aircraft."""
+
+    throttle: float  # Throttle setting (0 to 1)
+    elevator_deflection: float  # Elevator deflection in degrees
+
+
 class Aircraft:
-    """A class representing an aircraft with its properties and methods to
-    initialize its airfoil and calculate maximum thrust available.
+    """Aircraft class to represent the state and dynamics of the Boeing 737.
 
     Args:
-        mass (list): A list containing the operating empty weight (oew), payload,
-            and fuel mass of the aircraft.
-        thrust (float): The maximum thrust available at sea level.
-        initial_state (list): A list containing the initial body x-axis velocity
-            `u`, body z-axis velocity `w`, pitch rate `q`, pitch angle `theta`,
-            height `height`, and x-position `x`.
+        initial_state (list): Initial state of the aircraft [u, w, q, theta, height, x]
     """
 
-    def __init__(self, initial_state) -> None:
+    def __init__(self, initial_state: list | AircraftState) -> None:
         self.oew = None
         self.payload = None
         self.fuel_mass = None
         self.m = None
         self.thrust0 = None
-        self.u = initial_state[0]
-        self.w = initial_state[1]
-        self.q = initial_state[2]
-        self.theta = initial_state[3]
-        self.height = initial_state[4]
-        self.x = initial_state[5]
+        # accept either an AircraftState or a list/tuple of values
+        if isinstance(initial_state, AircraftState):
+            self.state = initial_state
+        else:
+            self.state = AircraftState(
+                u=initial_state[0],
+                w=initial_state[1],
+                q=initial_state[2],
+                theta=initial_state[3],
+                height=initial_state[4],
+                x=initial_state[5],
+            )
         self.airfoil = Airfoil()
         self.atmosphere = Atmosphere()
 
@@ -45,14 +79,16 @@ class Aircraft:
         # Estimated radius of gyration in the y-axis as a fraction of the length
         self.L = None  # Length of the aircraft in meters
 
-        self.throttle = 1.0  # Initial throttle setting (0 to 1)
-        self.elevator_deflection = 0.0  # Initial elevator deflection in degrees
+        # Controls held in a dataclass
+        self.controls = Controls(throttle=1.0, elevator_deflection=0.0)
 
         self.mcrit = None
         self.curve_exponent = None
         self.drag_severity_multiplier = None
 
-    def initialize_config(self, PARENT_PATH, airfoil_file, config_file) -> None:
+    def initialize_config(
+        self, PARENT_PATH: Path, airfoil_file: str, config_file: str
+    ) -> None:
         """Initializes the airfoil properties by extracting data from the given files.
 
         Args:
@@ -87,26 +123,23 @@ class Aircraft:
 
     @property
     def iyy(self) -> float:
+        """Calculates the moment of inertia about the y-axis (pitch axis).
+
+        Returns:
+            float: Moment of inertia about the y-axis (kg·m²)
+        """
         # iyy = iyy(dry) + iyy(fuel) + iyy(payload) i.e. iyy(dry) + int dm r^2
         # lets estimate simply using Roskam's estimation
         return self.m * (self.radius_of_gyration_yy * self.L) ** 2
 
-    def state(self) -> list:
-        """Returns the current state of the aircraft as a list.
-
-        Returns:
-            list: Current state [u, w, q, theta, height, x]
-        """
-        return [self.u, self.w, self.q, self.theta, self.height, self.x]
-
     def print_state(self) -> None:
         """Prints the current state of the aircraft as a neat colored table."""
-        v = np.sqrt(self.u**2 + self.w**2)
-        alpha = np.arctan2(self.w, self.u)
+        v = np.sqrt(self.state.u**2 + self.state.w**2)
+        alpha = np.arctan2(self.state.w, self.state.u)
         mach = v / np.sqrt(
             1.4
             * self.atmosphere.R
-            * (self.atmosphere.T0 + self.atmosphere.L * self.height)
+            * (self.atmosphere.T0 + self.atmosphere.L * self.state.height)
         )
 
         # ANSI color codes
@@ -124,12 +157,12 @@ class Aircraft:
         print(f"{HEADER}{BOLD}{'='*70}{RESET}\n")
 
         state_vars = [
-            ("Body X-velocity (u)", f"{self.u:.2f}", "m/s", CYAN),
-            ("Body Z-velocity (w)", f"{self.w:.2f}", "m/s", CYAN),
-            ("Pitch rate (q)", f"{self.q:.4f}", "rad/s", BLUE),
-            ("Pitch angle (θ)", f"{np.degrees(self.theta):.2f}", "°", BLUE),
-            ("Height", f"{self.height:.2f}", "m", GREEN),
-            ("X-position", f"{self.x:.2f}", "m", GREEN),
+            ("Body X-velocity (u)", f"{self.state.u:.2f}", "m/s", CYAN),
+            ("Body Z-velocity (w)", f"{self.state.w:.2f}", "m/s", CYAN),
+            ("Pitch rate (q)", f"{self.state.q:.4f}", "rad/s", BLUE),
+            ("Pitch angle (θ)", f"{np.degrees(self.state.theta):.2f}", "°", BLUE),
+            ("Height", f"{self.state.height:.2f}", "m", GREEN),
+            ("X-position", f"{self.state.x:.2f}", "m", GREEN),
         ]
 
         derived_vars = [
@@ -148,7 +181,7 @@ class Aircraft:
 
         print(f"\n{HEADER}{BOLD}{'='*70}{RESET}\n")
 
-    def maximum_thrust_available(self, height) -> float:
+    def maximum_thrust_available(self, height: float) -> float:
         """Calculates the maximum thrust available at a given height.
 
         Args:
@@ -156,10 +189,28 @@ class Aircraft:
 
         Returns:
             float: Maximum thrust available at the given height.
+
+        Raises:
+            ValueError: If the height is negative.
         """
+        if height < 0:
+            raise ValueError("Height cannot be negative.")
         return self.thrust0 * self.atmosphere.rho(height) / self.atmosphere.rho0
 
-    def derivatives(self, t, state) -> list:
+    def derivatives(self, t: float, state: list) -> list:
+        """Calculates the derivatives of the aircraft state variables.
+
+        Args:
+            t (float): Time.
+            state (list): Current state of the aircraft [u, w, q, theta, height, x].
+
+        Returns:
+            list: Derivatives of the state variables respectively.
+
+        Raises:
+            StallError: If the angle of attack exceeds the stall angle.
+            SupersonicFlowError: If the Mach number exceeds 1.0.
+        """
         u, w, q, theta, height, x = state
 
         qbar = 0.5 * self.atmosphere.rho(height) * (u**2 + w**2)
@@ -185,11 +236,12 @@ class Aircraft:
         cD = (
             self.airfoil.cd0 if mach < 0.3 else self.airfoil.cd0 / beta**2
         ) + self.airfoil.k * (cL**2)
+        # use controls dataclass for control inputs
         cM = (
             self.airfoil.cm0
             + self.airfoil.cma * alpha
-            + self.airfoil.cmde * np.radians(self.elevator_deflection)
-            + self.airfoil.cmq * (q * self.airfoil.chord_length / (2 * v))
+            + self.airfoil.cmde * np.radians(self.controls.elevator_deflection)
+            + self.airfoil.cmq * (q * self.airfoil.chord_length / (2 * max(v, 1e-6)))
         )
 
         if mach > 0.7:
@@ -200,7 +252,7 @@ class Aircraft:
                 * (mach - self.mcrit) ** self.curve_exponent
             )
 
-        T = self.throttle * self.maximum_thrust_available(height)
+        T = self.controls.throttle * self.maximum_thrust_available(height)
         L = qbar * self.airfoil.wing_area * cL
         D = qbar * self.airfoil.wing_area * cD
         M = qbar * self.airfoil.wing_area * self.airfoil.chord_length * cM
@@ -227,12 +279,27 @@ class Aircraft:
 
         Args:
             dt (float): Time step for the update.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If delta_t is not positive.
         """
+        y0 = [
+            self.state.u,
+            self.state.w,
+            self.state.q,
+            self.state.theta,
+            self.state.height,
+            self.state.x,
+        ]
         sol = solve_ivp(
             self.derivatives,
             t_span=(0, delta_t),
-            y0=self.state(),
+            y0=y0,
             method="RK45",
             t_eval=[delta_t],
         )
-        self.u, self.w, self.q, self.theta, self.height, self.x = sol.y[:, -1]
+        u, w, q, theta, height, x = sol.y[:, -1]
+        self.state = AircraftState(u=u, w=w, q=q, theta=theta, height=height, x=x)
