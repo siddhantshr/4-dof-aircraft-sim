@@ -1,5 +1,7 @@
 import math
+
 import pygame
+
 from src.models.aircraft import Aircraft
 
 # ── window ────────────────────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ S = dict(
     sel_spd=175,
     sel_alt=3000,
     cmd=False,
-    mach=0.0
+    mach=0.0,
 )
 
 # ── attitude indicator geometry ───────────────────────────────────────────────
@@ -68,6 +70,7 @@ TAPE_H = AI_H
 # ─────────────────────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def font(size, bold=False):
     return pygame.font.SysFont("monospace", size, bold=bold)
@@ -108,6 +111,7 @@ def apply_user_input(aircraft: Aircraft, dt: float) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 #  ATTITUDE INDICATOR
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def draw_ai(surf, pitch_deg):
     ai_rect = pygame.Rect(AI_X, AI_Y, AI_W, AI_H)
@@ -172,6 +176,7 @@ def draw_ai(surf, pitch_deg):
 #  SPEED TAPE  (left)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def draw_speed_tape(surf, tas):
     rect = pygame.Rect(SPD_X, TAPE_Y, SPD_W, TAPE_H)
     pygame.draw.rect(surf, TAPE_BG, rect)
@@ -187,9 +192,18 @@ def draw_speed_tape(surf, tas):
         y = int(TAPE_Y + TAPE_H // 2 + dy)
         if not (TAPE_Y <= y <= TAPE_Y + TAPE_H):
             continue
-        pygame.draw.line(surf, WHITE, (SPD_X + SPD_W - 18, y), (SPD_X + SPD_W - 2, y), 2)
+        pygame.draw.line(
+            surf, WHITE, (SPD_X + SPD_W - 18, y), (SPD_X + SPD_W - 2, y), 2
+        )
         if spd % 20 == 0:
-            txt(surf, str(spd), (SPD_X + SPD_W - 22, y - 9), f_tick, WHITE, anchor="topright")
+            txt(
+                surf,
+                str(spd),
+                (SPD_X + SPD_W - 22, y - 9),
+                f_tick,
+                WHITE,
+                anchor="topright",
+            )
 
     # vref tick
     vref = S["vref_kt"]
@@ -201,17 +215,30 @@ def draw_speed_tape(surf, tas):
 
     # speed window
     win_h = 46
-    win_rect = pygame.Rect(SPD_X - 2, TAPE_Y + TAPE_H // 2 - win_h // 2, SPD_W + 4, win_h)
+    win_rect = pygame.Rect(
+        SPD_X - 2, TAPE_Y + TAPE_H // 2 - win_h // 2, SPD_W + 4, win_h
+    )
     pygame.draw.rect(surf, BLACK, win_rect)
     pygame.draw.rect(surf, WHITE, win_rect, 2)
     f_spd = font(30, bold=True)
-    txt(surf, str(int(tas)), (win_rect.centerx, win_rect.centery), f_spd, WHITE, anchor="center")
+    txt(
+        surf,
+        str(int(tas)),
+        (win_rect.centerx, win_rect.centery),
+        f_spd,
+        WHITE,
+        anchor="center",
+    )
 
     # selected speed bug (magenta triangle on right edge)
     sel = S["sel_spd"]
     sy = int(TAPE_Y + TAPE_H // 2 + (tas - sel) * px_per_kt)
     if TAPE_Y <= sy <= TAPE_Y + TAPE_H:
-        pts = [(SPD_X + SPD_W, sy), (SPD_X + SPD_W + 14, sy - 10), (SPD_X + SPD_W + 14, sy + 10)]
+        pts = [
+            (SPD_X + SPD_W, sy),
+            (SPD_X + SPD_W + 14, sy - 10),
+            (SPD_X + SPD_W + 14, sy + 10),
+        ]
         pygame.draw.polygon(surf, MAGENTA, pts)
 
     # selected speed label above tape
@@ -224,13 +251,20 @@ def draw_speed_tape(surf, tas):
 
     # VREF labels
     f_ref = font(17)
-    txt(surf, f"{S['flap']}/{S['vref_kt']}", (SPD_X + 4, TAPE_Y + TAPE_H - 76), f_ref, GREEN)
+    txt(
+        surf,
+        f"{S['flap']}/{S['vref_kt']}",
+        (SPD_X + 4, TAPE_Y + TAPE_H - 76),
+        f_ref,
+        GREEN,
+    )
     txt(surf, f"VREF {S['vref_kt']}", (SPD_X + 4, TAPE_Y + TAPE_H - 54), f_ref, GREEN)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  ALTITUDE TAPE  (right)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def draw_alt_tape(surf, alt):
     rect = pygame.Rect(ALT_X, TAPE_Y, ALT_W, TAPE_H)
@@ -256,7 +290,9 @@ def draw_alt_tape(surf, alt):
     sel_dy = (sel - alt) * px_per_ft
     sel_y = int(TAPE_Y + TAPE_H // 2 - sel_dy)
     if TAPE_Y <= sel_y <= TAPE_Y + TAPE_H:
-        pygame.draw.line(surf, MAGENTA, (ALT_X + 2, sel_y), (ALT_X + ALT_W - 2, sel_y), 2)
+        pygame.draw.line(
+            surf, MAGENTA, (ALT_X + 2, sel_y), (ALT_X + ALT_W - 2, sel_y), 2
+        )
         f_sm = font(16)
         txt(surf, str(sel), (ALT_X + 24, sel_y - 18), f_sm, MAGENTA)
 
@@ -264,7 +300,9 @@ def draw_alt_tape(surf, alt):
 
     # altitude window
     win_h = 46
-    win_rect = pygame.Rect(ALT_X - 2, TAPE_Y + TAPE_H // 2 - win_h // 2, ALT_W + 4, win_h)
+    win_rect = pygame.Rect(
+        ALT_X - 2, TAPE_Y + TAPE_H // 2 - win_h // 2, ALT_W + 4, win_h
+    )
     pygame.draw.rect(surf, BLACK, win_rect)
     pygame.draw.rect(surf, WHITE, win_rect, 2)
 
@@ -277,13 +315,33 @@ def draw_alt_tape(surf, alt):
         t_img = f_big.render(str(thousands), True, WHITE)
         h_img = f_mid.render(f"{hundreds:03d}", True, WHITE)
         surf.blit(t_img, (win_rect.x + 6, win_rect.centery - t_img.get_height() // 2))
-        surf.blit(h_img, (win_rect.right - h_img.get_width() - 4, win_rect.centery - h_img.get_height() // 2))
+        surf.blit(
+            h_img,
+            (
+                win_rect.right - h_img.get_width() - 4,
+                win_rect.centery - h_img.get_height() // 2,
+            ),
+        )
     else:
-        txt(surf, str(int(alt)), (win_rect.centerx, win_rect.centery), f_big, WHITE, anchor="center")
+        txt(
+            surf,
+            str(int(alt)),
+            (win_rect.centerx, win_rect.centery),
+            f_big,
+            WHITE,
+            anchor="center",
+        )
 
     # selected alt above tape
     f_sel = font(22, bold=True)
-    txt(surf, str(S["sel_alt"]), (ALT_X + ALT_W // 2, TAPE_Y - 30), f_sel, MAGENTA, anchor="midtop")
+    txt(
+        surf,
+        str(S["sel_alt"]),
+        (ALT_X + ALT_W // 2, TAPE_Y - 30),
+        f_sel,
+        MAGENTA,
+        anchor="midtop",
+    )
 
     # baro below tape
     f_baro = font(20, bold=True)
@@ -293,6 +351,7 @@ def draw_alt_tape(surf, alt):
 # ─────────────────────────────────────────────────────────────────────────────
 #  VERTICAL SPEED TAPE  (far right, narrow)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def vs_to_y(v):
     """Map VS (fpm) to a y pixel on the VS tape."""
@@ -332,12 +391,20 @@ def draw_vs_tape(surf, vs):
     if abs(vs) > 200:
         f_v2 = font(17, bold=True)
         yt = py - 22 if vs > 0 else py + 6
-        txt(surf, str(abs(int(vs))), (VS_X + VS_W // 2, yt), f_v2, GREEN, anchor="midtop")
+        txt(
+            surf,
+            str(abs(int(vs))),
+            (VS_X + VS_W // 2, yt),
+            f_v2,
+            GREEN,
+            anchor="midtop",
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  HEADING TAPE  (bottom arc + tape)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def draw_hdg_tape(surf, hdg):
     tape_x = AI_X
@@ -377,19 +444,41 @@ def draw_hdg_tape(surf, hdg):
     pygame.draw.rect(surf, BLACK, win_rect)
     pygame.draw.rect(surf, WHITE, win_rect, 2)
     f_h2 = font(20, bold=True)
-    txt(surf, f"{int(hdg):03d}", (win_rect.centerx, win_rect.centery), f_h2, WHITE, anchor="center")
+    txt(
+        surf,
+        f"{int(hdg):03d}",
+        (win_rect.centerx, win_rect.centery),
+        f_h2,
+        WHITE,
+        anchor="center",
+    )
 
     # MAG label
-    txt(surf, "MAG", (tape_x + tape_w // 2, tape_y + tape_h + 4), font(17), GREEN, anchor="midtop")
+    txt(
+        surf,
+        "MAG",
+        (tape_x + tape_w // 2, tape_y + tape_h + 4),
+        font(17),
+        GREEN,
+        anchor="midtop",
+    )
 
     # selected heading
     f_sh = font(22, bold=True)
-    txt(surf, f"{S['hdg_mag']:03d} H", (tape_x + tape_w // 2, tape_y + tape_h + 26), f_sh, MAGENTA, anchor="midtop")
+    txt(
+        surf,
+        f"{S['hdg_mag']:03d} H",
+        (tape_x + tape_w // 2, tape_y + tape_h + 26),
+        f_sh,
+        MAGENTA,
+        anchor="midtop",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  TOP ANNUNCIATIONS
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def draw_annunciations(surf):
     f = font(22, bold=True)
@@ -416,10 +505,16 @@ def draw_annunciations(surf):
 
 def update_state_from_aircraft(aircraft: Aircraft) -> None:
     v = (aircraft.u**2 + aircraft.w**2) ** 0.5
-    mach = v / math.sqrt(1.4 * aircraft.atmosphere.R * (aircraft.atmosphere.T0 + aircraft.atmosphere.L * aircraft.height))
+    mach = v / math.sqrt(
+        1.4
+        * aircraft.atmosphere.R
+        * (aircraft.atmosphere.T0 + aircraft.atmosphere.L * aircraft.height)
+    )
     tas_kt = v * KTS_PER_MPS
     alt_ft = aircraft.height * FT_PER_M
-    vs_mps = aircraft.u * math.sin(aircraft.theta) - aircraft.w * math.cos(aircraft.theta)
+    vs_mps = aircraft.u * math.sin(aircraft.theta) - aircraft.w * math.cos(
+        aircraft.theta
+    )
     vs_fpm = vs_mps * FPM_PER_MPS
 
     S["tas_kt"] = max(0.0, tas_kt)

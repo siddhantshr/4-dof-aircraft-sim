@@ -3,6 +3,7 @@
 
 # Ignore venv
 .venv/
+venv/
 
 # Ignore build outputs
 dist/

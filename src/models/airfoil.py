@@ -1,13 +1,10 @@
-import json
-from pathlib import Path
-import pandas as pd
 import numpy as np
+import pandas as pd
 import yaml
 
-PARENT_PATH = Path(__file__).resolve().parent.parent.parent
 
 class Airfoil:  # for lift and drag
-    """Airfoil class to store aerodynamic properties of the airfoil, 
+    """Airfoil class to store aerodynamic properties of the airfoil,
     such as lift and drag coefficients, geometric properties, etc.
 
     Args:
@@ -38,7 +35,7 @@ class Airfoil:  # for lift and drag
         wing_span=None,
     ) -> None:
         self.alpha0 = alpha0
-        self.cl_slope = cl_slope # lift curve slope (per degree)
+        self.cl_slope = cl_slope  # lift curve slope (per degree)
         self.cd0 = cd0
         self.k = k
         self.stall_angle = stall_angle
@@ -56,7 +53,7 @@ class Airfoil:  # for lift and drag
         self.cmq = None
 
     def extract_airfoil(self, PARENT_PATH, airfoil_file, config_file) -> None:
-        """Extracts airfoil properties from the given files and populates the attributes of the Airfoil class.
+        """Extracts airfoil properties from the given files.
 
         Args:
             PARENT_PATH (Path): parent path to the data files
@@ -71,11 +68,12 @@ class Airfoil:  # for lift and drag
             ValueError: If the data in the files is not in the expected format.
         """
 
-
         with open(PARENT_PATH / config_file, "r") as f:
             # ----------------------- GEOMETRIC PROPERTIES -----------------------
             config = yaml.safe_load(f)
-            self.chord_length = float(config["B737"]["geometry"]["mean_aerodynamic_chord"])
+            self.chord_length = float(
+                config["B737"]["geometry"]["mean_aerodynamic_chord"]
+            )
             self.wing_span = float(config["B737"]["geometry"]["wing_span"])
             self.wing_area = float(config["B737"]["geometry"]["wing_area"])
             self.aspect_ratio = self.wing_span**2 / self.wing_area
@@ -123,4 +121,4 @@ class Airfoil:  # for lift and drag
         )  # converting back to per degree
 
         # alpha0 from our least square fit, where cl = 0 i.e alpha0 = -intercept/slope
-        self.alpha0 = -c / self.cl_slope # in degrees
+        self.alpha0 = -c / self.cl_slope  # in degrees

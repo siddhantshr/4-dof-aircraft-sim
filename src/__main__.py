@@ -4,22 +4,44 @@ Run:  python -m src
 Requires: pygame
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pygame
 
-from src.models.aircraft import Aircraft
 from src.exceptions.exceptions import (
     GroundContactError,
     StallError,
-    SupersonicFlowError,
     StructureDeformationError,
+    SupersonicFlowError,
+)
+from src.models.aircraft import Aircraft
+from src.utils.pfd import (
+    AI_H,
+    AI_Y,
+    BG,
+    CYAN,
+    FPS,
+    PHYSICS_DT,
+    RED,
+    SPD_X,
+    H,
+    S,
+    W,
+    apply_user_input,
+    draw_ai,
+    draw_alt_tape,
+    draw_annunciations,
+    draw_hdg_tape,
+    draw_speed_tape,
+    draw_vs_tape,
+    font,
+    txt,
+    update_state_from_aircraft,
 )
 
-from src.utils.pfd import *
-
 PARENT_PATH = Path(__file__).resolve().parent
+
 
 def main() -> None:
     pygame.init()
@@ -28,7 +50,9 @@ def main() -> None:
     clock = pygame.time.Clock()
 
     b737 = Aircraft(initial_state=[70, 0, 0, 0.1, 1000, 0])
-    b737.initialize_config(PARENT_PATH, "data/737-midspan-airfoil.csv", "data/configuration.yaml")
+    b737.initialize_config(
+        PARENT_PATH, "data/737-midspan-airfoil.csv", "data/configuration.yaml"
+    )
 
     physics_accumulator = 0.0
     status_message = ""
@@ -54,7 +78,12 @@ def main() -> None:
                 if b737.height <= 0:
                     raise GroundContactError(b737.height)
             status_message = ""
-        except (StallError, SupersonicFlowError, GroundContactError, StructureDeformationError) as exc:
+        except (
+            StallError,
+            SupersonicFlowError,
+            GroundContactError,
+            StructureDeformationError,
+        ) as exc:
             status_message = str(exc)
             physics_accumulator = 0.0
 
@@ -99,7 +128,14 @@ def main() -> None:
         )
 
         if status_message:
-            txt(screen, status_message, (W // 2, H - 30), font(18, bold=True), RED, anchor="midtop")
+            txt(
+                screen,
+                status_message,
+                (W // 2, H - 30),
+                font(18, bold=True),
+                RED,
+                anchor="midtop",
+            )
 
         pygame.display.flip()
 
