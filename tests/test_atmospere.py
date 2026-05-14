@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import pytest   # type: ignore
+import pytest  # type: ignore
 
 from src.utils.atmosphere import Atmosphere
 

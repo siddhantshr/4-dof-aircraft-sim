@@ -9,9 +9,9 @@ tas, gs displayed in knots; alt in feet; vs in fpm; hdg in degrees; baro in inch
 """
 
 import math
+from typing import Any
 
 import pygame  # type: ignore
-from typing import Any
 
 from src.models.aircraft import Aircraft
 

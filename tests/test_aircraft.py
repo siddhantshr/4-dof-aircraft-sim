@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-import pytest   # type: ignore
+import pytest  # type: ignore
 from numpy.typing import NDArray
 
 from src.exceptions.exceptions import (
