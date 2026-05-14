@@ -28,6 +28,7 @@ Thumbs.db
 coverage/
 .coverage
 .pytest_cache/
+.mypy_cache/
 # Ignore temporary files
 tmp/
 temp/

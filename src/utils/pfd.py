@@ -10,7 +10,8 @@ tas, gs displayed in knots; alt in feet; vs in fpm; hdg in degrees; baro in inch
 
 import math
 
-import pygame
+import pygame  # type: ignore
+from typing import Any
 
 from src.models.aircraft import Aircraft
 
@@ -72,7 +73,7 @@ TAPE_Y = AI_Y
 TAPE_H = AI_H
 
 
-def font(size: int, bold: bool = False) -> pygame.font.Font:
+def font(size: int, bold: bool = False) -> Any:
     """Helper function to create a pygame font object.
 
     Args:
@@ -89,11 +90,11 @@ def font(size: int, bold: bool = False) -> pygame.font.Font:
 
 
 def txt(
-    surf: pygame.Surface,
+    surf: Any,
     text: str,
-    pos: tuple,
-    fnt: pygame.font.Font,
-    colour: tuple,
+    pos: tuple[float, float],
+    fnt: Any,
+    colour: tuple[int, int, int],
     anchor: str = "topleft",
 ) -> None:
     """Helper function to render text on a pygame surface with specified font and color.
@@ -101,9 +102,10 @@ def txt(
     Args:
         surf (pygame.Surface): The surface to render the text on.
         text (str): The text to render.
-        pos (tuple): The position to place the text, as (x, y) coordinates.
+        pos (tuple[float, float]): The position to place the text, as
+        (x, y) coordinates.
         fnt (pygame.font.Font): The font object to use for rendering the text.
-        colour (tuple): The color of the text, as an RGB tuple.
+        colour (tuple[int, int, int]): The color of the text, as an RGB tuple.
         anchor (str): The anchor point for positioning the text.
                       Options include 'topleft', 'topright', 'midtop', 'center',
                       etc. Default is 'topleft'.

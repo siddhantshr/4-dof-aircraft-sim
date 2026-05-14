@@ -1,13 +1,13 @@
 from pathlib import Path
 
-import pytest
+import pytest   # type: ignore
 
 from src.utils.atmosphere import Atmosphere
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "src" / "data"
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[untyped-decorator]
 def init_atmosphere() -> Atmosphere:
     return Atmosphere()
 

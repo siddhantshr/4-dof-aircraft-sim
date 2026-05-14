@@ -6,7 +6,7 @@ handles initilization, main loop, and rendering of the PFD.
 import sys
 from pathlib import Path
 
-import pygame
+import pygame  # type: ignore
 
 from src.exceptions.exceptions import (
     GroundContactError,

@@ -1,13 +1,13 @@
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore
 
 from src.models.aircraft import Aircraft
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "src" / "data"
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[untyped-decorator]
 def initialized_aircraft() -> Aircraft:
     aircraft = Aircraft([120.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
     aircraft.initialize_config(
@@ -21,6 +21,17 @@ def initialized_aircraft() -> Aircraft:
 def test_airfoil_properties(initialized_aircraft: Aircraft) -> None:
     airfoil = initialized_aircraft.airfoil
     assert airfoil.alpha0 is not None
+    assert airfoil.cl_slope is not None
+    assert airfoil.cd0 is not None
+    assert airfoil.k is not None
+    assert airfoil.stall_angle is not None
+    assert airfoil.negative_stall_angle is not None
+    assert airfoil.oswald_efficiency is not None
+    assert airfoil.cm0 is not None
+    assert airfoil.chord_length is not None
+    assert airfoil.wing_area is not None
+    assert airfoil.wing_span is not None
+    assert airfoil.aspect_ratio is not None
     assert airfoil.cl_slope > 0
     assert airfoil.cd0 > 0
     assert airfoil.k > 0

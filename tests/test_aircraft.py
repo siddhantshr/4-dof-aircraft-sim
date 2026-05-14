@@ -1,7 +1,9 @@
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
-import pytest
+import pytest   # type: ignore
+from numpy.typing import NDArray
 
 from src.exceptions.exceptions import (
     CriticalMachWarning,
@@ -14,7 +16,7 @@ from src.models.aircraft import Aircraft, AircraftState, Controls
 DATA_PATH = Path(__file__).resolve().parents[1] / "src" / "data"
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[untyped-decorator]
 def initialized_aircraft() -> Aircraft:
     aircraft = Aircraft([120.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
     aircraft.initialize_config(
@@ -53,6 +55,11 @@ def test_initialize_config_populates_aircraft_and_airfoil(
     initialized_aircraft: Aircraft,
 ) -> None:
     aircraft = initialized_aircraft
+    assert aircraft.m is not None
+    assert aircraft.thrust0 is not None
+    assert aircraft.radius_of_gyration_yy is not None
+    assert aircraft.L is not None
+    assert aircraft.airfoil.wing_area is not None
     assert aircraft.m > 0
     assert aircraft.thrust0 > 0
     assert aircraft.radius_of_gyration_yy > 0
@@ -87,29 +94,37 @@ def test_derivatives_nominal_case_returns_six_finite_values(
     initialized_aircraft: Aircraft,
 ) -> None:
     state = [130.0, 3.0, 0.01, 0.02, 1800.0, 100.0]
-    derivs = initialized_aircraft.derivatives(0.0, state)
+    derivs = initialized_aircraft.derivatives(0.0, np.array(state))
     assert len(derivs) == 6
     assert np.all(np.isfinite(derivs))
 
 
 def test_derivatives_ground_contact_raises(initialized_aircraft: Aircraft) -> None:
     with pytest.raises(GroundContactError):
-        initialized_aircraft.derivatives(0.0, [100.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        initialized_aircraft.derivatives(
+            0.0, np.array([100.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        )
 
 
 def test_derivatives_stall_raises(initialized_aircraft: Aircraft) -> None:
     with pytest.raises(StallError):
-        initialized_aircraft.derivatives(0.0, [10.0, 30.0, 0.0, 0.0, 2000.0, 0.0])
+        initialized_aircraft.derivatives(
+            0.0, np.array([10.0, 30.0, 0.0, 0.0, 2000.0, 0.0])
+        )
 
 
 def test_derivatives_supersonic_raises(initialized_aircraft: Aircraft) -> None:
     with pytest.raises(SupersonicFlowError):
-        initialized_aircraft.derivatives(0.0, [400.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
+        initialized_aircraft.derivatives(
+            0.0, np.array([400.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
+        )
 
 
 def test_derivatives_warns_on_critical_mach(initialized_aircraft: Aircraft) -> None:
     with pytest.warns(CriticalMachWarning):
-        initialized_aircraft.derivatives(0.0, [245.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
+        initialized_aircraft.derivatives(
+            0.0, np.array([245.0, 0.0, 0.0, 0.0, 2000.0, 0.0])
+        )
 
 
 def test_update_state_updates_state_from_integrator(
@@ -124,7 +139,13 @@ def test_update_state_updates_state_from_integrator(
                 dtype=float,
             )
 
-    def fake_solve_ivp(fun, t_span, y0, method, t_eval) -> DummySolution:
+    def fake_solve_ivp(
+        fun: Callable[[float, NDArray[np.float64]], NDArray[np.float64]],
+        t_span: tuple[float, float],
+        y0: NDArray[np.float64],
+        method: str,
+        t_eval: list[float],
+    ) -> DummySolution:
         assert callable(fun)
         assert t_span == (0, 0.5)
         assert y0 == [100.0, 0.0, 0.0, 0.0, 1000.0, 0.0]

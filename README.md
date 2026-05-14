@@ -121,6 +121,16 @@ make lint
 make format
 ```
 
+- Type checking with `mypy`:
+
+```bash
+make mypy    # run mypy against the `src/` package
+# or run directly:
+python -m mypy . --show-traceback
+```
+
+Add `--strict` or tune `mypy.ini` as your project requires. The Makefile forwards `$(mypy_args)` so you can pass extra flags, e.g. `make mypy mypy_args="--strict"`.
+
 - Clean build/artifact files and the venv:
 
 ```bash

@@ -12,9 +12,11 @@ atmospheric properties.
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 from warnings import warn
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 from yaml import safe_load
 
@@ -55,12 +57,12 @@ class Aircraft:
         initial_state (list): Initial state of the aircraft [u, w, q, theta, height, x]
     """
 
-    def __init__(self, initial_state: list | AircraftState) -> None:
-        self.oew = None
-        self.payload = None
-        self.fuel_mass = None
-        self.m = None
-        self.thrust0 = None
+    def __init__(self, initial_state: list[float] | AircraftState) -> None:
+        self.oew: Optional[float] = None
+        self.payload: Optional[float] = None
+        self.fuel_mass: Optional[float] = None
+        self.m: Optional[float] = None
+        self.thrust0: Optional[float] = None
         # accept either an AircraftState or a list/tuple of values
         if isinstance(initial_state, AircraftState):
             self.state = initial_state
@@ -73,19 +75,19 @@ class Aircraft:
                 height=initial_state[4],
                 x=initial_state[5],
             )
-        self.airfoil = Airfoil()
-        self.atmosphere = Atmosphere()
+        self.airfoil: Airfoil = Airfoil()
+        self.atmosphere: Atmosphere = Atmosphere()
 
-        self.radius_of_gyration_yy = None
+        self.radius_of_gyration_yy: Optional[float] = None
         # Estimated radius of gyration in the y-axis as a fraction of the length
-        self.L = None  # Length of the aircraft in meters
+        self.L: Optional[float] = None  # Length of the aircraft in meters
 
         # Controls held in a dataclass
         self.controls = Controls(throttle=1.0, elevator_deflection=0.0)
 
-        self.mcrit = None
-        self.curve_exponent = None
-        self.drag_severity_multiplier = None
+        self.mcrit: Optional[float] = None
+        self.curve_exponent: Optional[float] = None
+        self.drag_severity_multiplier: Optional[float] = None
 
     def initialize_config(
         self, PARENT_PATH: Path, airfoil_file: str, config_file: str
@@ -109,7 +111,8 @@ class Aircraft:
             self.oew = float(config["B737"]["mass"]["oew"])
             self.payload = float(config["B737"]["mass"]["payload"])
             self.fuel_mass = float(config["B737"]["mass"]["fuel_mass"])
-            self.m = self.oew + self.payload + self.fuel_mass
+            # mypy: attributes now Optional but set here
+            self.m = float(self.oew + self.payload + self.fuel_mass)
             self.thrust0 = float(config["B737"]["thrust"]["thrust0"])
             self.radius_of_gyration_yy = float(
                 config["B737"]["geometry"]["radius_of_gyration_yy"]
@@ -131,7 +134,9 @@ class Aircraft:
         """
         # iyy = iyy(dry) + iyy(fuel) + iyy(payload) i.e. iyy(dry) + int dm r^2
         # lets estimate simply using Roskam's estimation
-        return self.m * (self.radius_of_gyration_yy * self.L) ** 2
+        if self.m is None or self.radius_of_gyration_yy is None or self.L is None:
+            raise ValueError("Moment of inertia not initialized")
+        return float(self.m * (self.radius_of_gyration_yy * self.L) ** 2)
 
     def print_state(self) -> None:
         """Prints the current state of the aircraft as a neat colored table."""
@@ -196,17 +201,20 @@ class Aircraft:
         """
         if height < 0:
             raise ValueError("Height cannot be negative.")
-        return self.thrust0 * self.atmosphere.rho(height) / self.atmosphere.rho0
+        if self.thrust0 is None:
+            raise ValueError("Aircraft thrust not initialized")
+        return float(self.thrust0 * self.atmosphere.rho(height) / self.atmosphere.rho0)
 
-    def derivatives(self, t: float, state: list) -> list:
+    def derivatives(self, t: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Calculates the derivatives of the aircraft state variables.
 
         Args:
             t (float): Time.
-            state (list): Current state of the aircraft [u, w, q, theta, height, x].
+            state (np.ndarray[float]): Current state of the aircraft
+            [u, w, q, theta, height, x].
 
         Returns:
-            list: Derivatives of the state variables respectively.
+            np.ndarray[float]: Derivatives of the state variables respectively.
 
         Raises:
             StallError: If the angle of attack exceeds the stall angle.
@@ -216,6 +224,24 @@ class Aircraft:
 
         if height <= 0:
             raise GroundContactError(height)
+
+        # ensure critical parameters are initialized
+        if (
+            self.airfoil.cl_slope is None
+            or self.airfoil.alpha0 is None
+            or self.airfoil.stall_angle is None
+            or self.airfoil.negative_stall_angle is None
+            or self.airfoil.cd0 is None
+            or self.airfoil.k is None
+            or self.airfoil.cm0 is None
+            or self.airfoil.cma is None
+            or self.airfoil.cmde is None
+            or self.airfoil.cmq is None
+            or self.airfoil.chord_length is None
+            or self.airfoil.wing_area is None
+            or self.m is None
+        ):
+            raise ValueError("Aircraft aerodynamic or mass properties not initialized")
 
         qbar = 0.5 * self.atmosphere.rho(height) * (u**2 + w**2)
         alpha = np.arctan2(w, u)  # Angle of attack in radians
@@ -232,42 +258,46 @@ class Aircraft:
             raise SupersonicFlowError(mach)
         beta = np.sqrt(1 - mach**2)
 
-        cL = self.airfoil.cl_slope * (
-            np.degrees(alpha) - self.airfoil.alpha0
-        )  # cl_slope is in per degree
+        cL = float(self.airfoil.cl_slope * (np.degrees(alpha) - self.airfoil.alpha0))
         if mach > 0.3:
             cL /= beta
-        cD = (
-            self.airfoil.cd0 if mach < 0.3 else self.airfoil.cd0 / beta**2
-        ) + self.airfoil.k * (cL**2)
+        cD = float(
+            (self.airfoil.cd0 if mach < 0.3 else self.airfoil.cd0 / beta**2)
+            + self.airfoil.k * (cL**2)
+        )
         # use controls dataclass for control inputs
         cM = (
-            self.airfoil.cm0
-            + self.airfoil.cma * alpha
-            + self.airfoil.cmde * np.radians(self.controls.elevator_deflection)
-            + self.airfoil.cmq * (q * self.airfoil.chord_length / (2 * max(v, 1e-6)))
+            float(self.airfoil.cm0)
+            + float(self.airfoil.cma) * alpha
+            + float(self.airfoil.cmde) * np.radians(self.controls.elevator_deflection)
+            + float(self.airfoil.cmq)
+            * (q * float(self.airfoil.chord_length) / (2 * max(v, 1e-6)))
         )
 
         if mach > 0.7:
             warn(CriticalMachWarning(mach))
             # delta_cd = k(M-Mcrit)^m
-            cD += (
+            # all these attributes were validated earlier but cast to float for safety
+            cD += float(
                 self.drag_severity_multiplier
                 * (mach - self.mcrit) ** self.curve_exponent
             )
 
-        T = self.controls.throttle * self.maximum_thrust_available(height)
-        L = qbar * self.airfoil.wing_area * cL
-        D = qbar * self.airfoil.wing_area * cD
-        M = qbar * self.airfoil.wing_area * self.airfoil.chord_length * cM
+        T = float(self.controls.throttle * self.maximum_thrust_available(height))
+        L = float(qbar * float(self.airfoil.wing_area) * cL)
+        D = float(qbar * float(self.airfoil.wing_area) * cD)
+        M = float(
+            qbar * float(self.airfoil.wing_area) * float(self.airfoil.chord_length) * cM
+        )
 
+        # self.m validated earlier and cast
         u_dot = (
-            (T - D * np.cos(alpha) + L * np.sin(alpha)) / self.m
+            (T - D * np.cos(alpha) + L * np.sin(alpha)) / float(self.m)
             - self.atmosphere.g * np.sin(theta)
             - q * w
         )
         w_dot = (
-            (0 - D * np.sin(alpha) - L * np.cos(alpha)) / self.m
+            (0 - D * np.sin(alpha) - L * np.cos(alpha)) / float(self.m)
             + self.atmosphere.g * np.cos(theta)
             + q * u
         )
@@ -276,7 +306,9 @@ class Aircraft:
         height_dot = u * np.sin(theta) - w * np.cos(theta)
         x_dot = u * np.cos(theta) + w * np.sin(theta)
 
-        return [u_dot, w_dot, q_dot, theta_dot, height_dot, x_dot]
+        return np.array(
+            [u_dot, w_dot, q_dot, theta_dot, height_dot, x_dot], dtype=float
+        )
 
     def update_state(self, delta_t: float) -> None:
         """Updates the current aircraft state.
@@ -290,17 +322,20 @@ class Aircraft:
         Raises:
             ValueError: If delta_t is not positive.
         """
-        y0 = [
-            self.state.u,
-            self.state.w,
-            self.state.q,
-            self.state.theta,
-            self.state.height,
-            self.state.x,
-        ]
+        y0: NDArray[np.float64] = np.array(
+            [
+                self.state.u,
+                self.state.w,
+                self.state.q,
+                self.state.theta,
+                self.state.height,
+                self.state.x,
+            ],
+            dtype=float,
+        )
         sol = solve_ivp(
             self.derivatives,
-            t_span=(0, delta_t),
+            t_span=(0.0, delta_t),
             y0=y0,
             method="RK45",
             t_eval=[delta_t],

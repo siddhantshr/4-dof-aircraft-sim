@@ -5,7 +5,7 @@ REQ_DEV := requirements-dev.txt
 REQ := requirements.txt
 TEST_DIR := tests
 
-.PHONY: help venv install install-prod test coverage coverage-html lint format isort clean run activate
+.PHONY: help venv install install-prod test coverage coverage-html lint format isort mypy clean run activate
 
 help:
 	@echo "Makefile targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  coverage       - run tests and print coverage report"
 	@echo "  coverage-html  - run tests and generate htmlcov/"
 	@echo "  lint           - run flake8"
+	@echo "  mypy           - run static type checks with mypy"
 	@echo "  format         - run black + isort on src and tests"
 	@echo "  clean          - remove venv, caches and coverage artifacts"
 	@echo "  run            - run the package entrypoint (python -m src)"
@@ -46,6 +47,9 @@ coverage-html: venv
 lint: venv
 	$(PYTHON) -m flake8
 
+mypy: venv
+	$(PYTHON) -m mypy . $(mypy_args)
+
 format: venv
 	$(PYTHON) -m isort src $(TEST_DIR)
 	$(PYTHON) -m black src $(TEST_DIR)
@@ -56,7 +60,7 @@ isort: venv
 clean:
 	@echo "Cleaning project artifacts..."
 	-rm -rf $(VENV)
-	-rm -rf .pytest_cache htmlcov .coverage
+	-rm -rf .pytest_cache htmlcov .coverage .mypy_cache
 	-find . -type d -name __pycache__ -print -exec rm -rf {} +
 
 run: venv

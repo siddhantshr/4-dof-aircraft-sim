@@ -8,6 +8,7 @@ current state of the aircraft.
 """
 
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -33,35 +34,35 @@ class Airfoil:  # for lift and drag
 
     def __init__(
         self,
-        alpha0: float = None,
-        cl_slope: float = None,
-        cd0: float = None,
-        k: float = None,
-        stall_angle: float = None,
-        negative_stall_angle: float = None,
-        oswald_efficiency: float = None,
-        cm0: float = None,
-        chord_length: float = None,
-        wing_area: float = None,
-        wing_span: float = None,
+        alpha0: Optional[float] = None,
+        cl_slope: Optional[float] = None,
+        cd0: Optional[float] = None,
+        k: Optional[float] = None,
+        stall_angle: Optional[float] = None,
+        negative_stall_angle: Optional[float] = None,
+        oswald_efficiency: Optional[float] = None,
+        cm0: Optional[float] = None,
+        chord_length: Optional[float] = None,
+        wing_area: Optional[float] = None,
+        wing_span: Optional[float] = None,
     ) -> None:
-        self.alpha0 = alpha0
-        self.cl_slope = cl_slope  # lift curve slope (per degree)
-        self.cd0 = cd0
-        self.k = k
-        self.stall_angle = stall_angle
-        self.negative_stall_angle = negative_stall_angle
-        self.oswald_efficiency = oswald_efficiency
-        self.cm0 = cm0
-        self.chord_length = chord_length
-        self.wing_area = wing_area
-        self.wing_span = wing_span
-        self.aspect_ratio = (
-            wing_span**2 / wing_area if wing_area and wing_span else None
+        self.alpha0: Optional[float] = alpha0
+        self.cl_slope: Optional[float] = cl_slope  # lift curve slope (per degree)
+        self.cd0: Optional[float] = cd0
+        self.k: Optional[float] = k
+        self.stall_angle: Optional[float] = stall_angle
+        self.negative_stall_angle: Optional[float] = negative_stall_angle
+        self.oswald_efficiency: Optional[float] = oswald_efficiency
+        self.cm0: Optional[float] = cm0
+        self.chord_length: Optional[float] = chord_length
+        self.wing_area: Optional[float] = wing_area
+        self.wing_span: Optional[float] = wing_span
+        self.aspect_ratio: Optional[float] = (
+            (wing_span**2 / wing_area) if wing_area and wing_span else None
         )
-        self.cma = None
-        self.cmde = None
-        self.cmq = None
+        self.cma: Optional[float] = None
+        self.cmde: Optional[float] = None
+        self.cmq: Optional[float] = None
 
     def extract_airfoil(
         self, PARENT_PATH: Path, airfoil_file: str, config_file: str
@@ -107,25 +108,27 @@ class Airfoil:  # for lift and drag
         df = pd.read_csv(PARENT_PATH / airfoil_file)
         df.columns = df.columns.str.strip()
 
-        self.stall_angle = df.iloc[df["cl"].idxmax()][
+        self.stall_angle = df.iloc[int(df["cl"].idxmax())][
             "alpha"
         ]  # angle of attack for stall
-        self.negative_stall_angle = df.iloc[df["cl"].idxmin()]["alpha"]
-        data_points = []
-        linear_limit = 6
+        self.negative_stall_angle = df.iloc[int(df["cl"].idxmin())]["alpha"]
+        data_points: List[Tuple[float, float, float]] = []
+        linear_limit = 6.0
         for _, row in df.iterrows():
-            if abs(row["alpha"]) < linear_limit:
-                data_points.append((row["alpha"], row["cl"], row["cm"]))
+            if abs(float(row["alpha"])) < linear_limit:
+                data_points.append(
+                    (float(row["alpha"]), float(row["cl"]), float(row["cm"]))
+                )
 
         # performing least square fit to find cl_slope A.T@A@x = A.T@b
-        A = np.array([[1, point[0]] for point in data_points])
+        A = np.array([[1.0, point[0]] for point in data_points])
         b = np.array([point[1] for point in data_points])
-        c, cl_2d_slope = np.linalg.lstsq(A, b, rcond=None)[0]
-        cl_2d_slope *= (
-            180.0 / np.pi
-        )  # converting to per radian (our slope is cl per degree)
+        c_val, cl_2d_slope = np.linalg.lstsq(A, b, rcond=None)[0]
+        cl_2d_slope = float(cl_2d_slope) * (180.0 / np.pi)  # convert to per degree
 
         # applying finite wing correction to cl slope
+        if self.aspect_ratio is None or self.oswald_efficiency is None:
+            raise ValueError("Airfoil geometry or coefficients not initialized")
         self.cl_slope = (
             cl_2d_slope
             / (1 + cl_2d_slope / (np.pi * self.aspect_ratio * self.oswald_efficiency))
@@ -134,4 +137,4 @@ class Airfoil:  # for lift and drag
         )  # converting back to per degree
 
         # alpha0 from our least square fit, where cl = 0 i.e alpha0 = -intercept/slope
-        self.alpha0 = -c / self.cl_slope  # in degrees
+        self.alpha0 = float(-c_val / self.cl_slope)  # in degrees
