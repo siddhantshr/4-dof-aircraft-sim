@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-import pytest  # type: ignore
+import pytest   # type: ignore
 from numpy.typing import NDArray
 
 from src.exceptions.exceptions import (
@@ -148,7 +148,7 @@ def test_update_state_updates_state_from_integrator(
     ) -> DummySolution:
         assert callable(fun)
         assert t_span == (0, 0.5)
-        assert y0 == [100.0, 0.0, 0.0, 0.0, 1000.0, 0.0]
+        np.testing.assert_array_equal(y0, [100.0, 0.0, 0.0, 0.0, 1000.0, 0.0])
         assert method == "RK45"
         assert t_eval == [0.5]
         return DummySolution()
