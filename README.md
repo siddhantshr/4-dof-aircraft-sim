@@ -90,6 +90,57 @@ python -m src
 - Import sorting: `isort`
 - Linting: `flake8`
 
+## Developer Makefile
+
+This repository includes a `Makefile` to simplify common developer tasks.
+
+- Create and activate a Python virtualenv and install dev dependencies:
+
+```bash
+make install   # creates ./venv and installs requirements-dev.txt
+source venv/bin/activate
+```
+
+- Run the test suite:
+
+```bash
+make test      # runs pytest on the tests/ directory
+```
+
+- Run coverage and generate a report:
+
+```bash
+make coverage   # prints coverage report to the console
+make coverage-html  # generates htmlcov/
+```
+
+- Lint, format and import-sorting:
+
+```bash
+make lint
+make format
+```
+
+- Clean build/artifact files and the venv:
+
+```bash
+make clean
+```
+
+Notes:
+- The Makefile was added (untracked) and top-level tests live in the `tests/` directory.
+- If you see import errors when running tests, ensure you run them from the repository root and that the virtualenv is activated so `src` is importable.
+
+## Testing
+
+- Tests are located in the `tests/` directory and use `pytest`.
+- Test coverage is tracked using `pytest-cov` and can be run with `make coverage
+` to see a report in the console or `make coverage-html` to generate an HTML report in `htmlcov/`.
+- Tests cover the atmosphere model, aerodynamic coefficient fitting, and aircraft dynamics integration.
+- Mocking is used to isolate components and test specific functionality without relying on the full simulator environment
+- Use `python3 -m pytest` to run tests from the command line, or use an IDE's test runner with the appropriate configuration.
+- Use `pytest --cov=src` to run tests with coverage tracking for the `src` package.
+
 ## Limitations
 
 - No lateral-directional model yet.

@@ -26,13 +26,11 @@ Thumbs.db
 
 # Ignore coverage directory
 coverage/
+.coverage
+.pytest_cache/
 # Ignore temporary files
 tmp/
 temp/
 
 # ignore pycache
 __pycache__/
-
-db.sqlite3
-
-staticfiles/

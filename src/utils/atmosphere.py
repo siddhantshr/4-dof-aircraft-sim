@@ -21,19 +21,28 @@ class Atmosphere:
     def pressure(self, height):
         """Calculates the atmospheric pressure at a given
         height using the International Standard Atmosphere (ISA) model."""
+        if height < 0:
+            raise ValueError("Height cannot be negative")
+        if height > 20000:
+            raise ValueError("Pressure calculation only valid up to 20,000 m")
+
         if height < 11000:  # troposphere
             return self.p0 * (1 + self.L * height / self.T0) ** (
                 -self.g / (self.R * self.L)
             )
-        else:  # stratosphere
-            P11K = self.p0 * (1 + self.L * 11000 / self.T0) ** (
-                -self.g / (self.R * self.L)
-            )
-            T11K = self.T0 + self.L * 11000
+        P11K = self.p0 * (1 + self.L * 11000 / self.T0) ** (-self.g / (self.R * self.L))
+        T11K = self.T0 + self.L * 11000
 
-            return P11K * np.exp(-self.g * (height - 11000) / (self.R * T11K))
+        return P11K * np.exp(-self.g * (height - 11000) / (self.R * T11K))
 
     def rho(self, height):
         """Calculates the atmospheric density at a given
         height using the International Standard Atmosphere (ISA) model."""
-        return self.pressure(height) / (self.R * (self.T0 + self.L * height))
+        if height < 0:
+            raise ValueError("Height cannot be negative")
+        if height > 20000:
+            raise ValueError("Density calculation only valid up to 20,000 m")
+
+        if height < 11000:  # troposphere
+            return self.pressure(height) / (self.R * (self.T0 + self.L * height))
+        return self.pressure(height) / (self.R * (self.T0 + self.L * 11000))
